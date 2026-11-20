@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# ctf-tmux — buka sesi tmux berisi 2 panel untuk 1 mesin:
+#   [kiri]  MESIN    : jalankan server + ikuti log (lihat request yang masuk)
+#   [kanan] PLAYGROUND: shell penyerang, $TARGET sudah di-set
+#
+# Pemakaian:
+#   ./ctf-tmux 01-pingboard            # mode lite (default, cocok di NetHunter)
+#   ./ctf-tmux 01-pingboard docker     # mode docker (di PC ber-Docker)
+#
+# Menutup sesi (kill) otomatis men-down mesin. Set LAB_BIND=0.0.0.0 untuk
+# akses dari perangkat lain.
+#
+# Navigasi tmux: Ctrl-b lalu ← → (pindah panel) · Ctrl-b z (zoom panel) ·
+# Ctrl-b d (detach, mesin tetap jalan) · ketik `exit` di panel untuk menutup.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ID="${1:-01-pingboard}"
+MODE="${2:-lite}"
+BIND="${LAB_BIND:-127.0.0.1}"
+SESSION="ctflab-$ID"
+
+J="$ROOT/machines/$ID/machine.json"
+[ -f "$J" ] || { echo "[x] mesin '$ID' tidak ada. Lihat: ./labctl list" >&2; exit 1; }
+command -v tmux >/dev/null || { echo "[x] tmux tidak terpasang." >&2; exit 1; }
+
+# Tentukan port & perintah server/log sesuai mode.
+if [ "$MODE" = "docker" ]; then
+  PORT="$(python3 "$ROOT/.pj.py" "$J" get ports.0.host)"
+  UP_CMD="./labctl docker up $ID && docker logs -f ctflab-$ID"
+  DOWN_CMD="./labctl docker down $ID"
+elif [ "$MODE" = "lite" ]; then
+  python3 "$ROOT/.pj.py" "$J" has lite || { echo "[x] mesin '$ID' tidak punya mode lite. Coba: ./ctf-tmux $ID docker" >&2; exit 1; }
+  PORT="$(python3 "$ROOT/.pj.py" "$J" get lite.port)"
+  UP_CMD="./labctl lite up $ID && tail -n +1 -f .run/$ID/.log"
+  DOWN_CMD="./labctl lite down $ID"
+else
+  echo "[x] mode tidak dikenal: '$MODE' (lite|docker)" >&2; exit 1
+fi
+
+TARGET="http://${BIND}:${PORT}"
+
+# Sudah ada? Tinggal masuk.
+if tmux has-session -t "$SESSION" 2>/dev/null; then
+  echo "[*] sesi '$SESSION' sudah ada, menyambung..."
+  [ -n "${TMUX:-}" ] && exec tmux switch-client -t "$SESSION" || exec tmux attach -t "$SESSION"
+fi
+
+# Panel MESIN: jalankan server, dan saat panel ditutup -> down mesin.
+SERVER_PANE="trap '$DOWN_CMD' EXIT INT TERM; $UP_CMD"
+
+# Cheatsheet playground.
+PLAY_INTRO=$(cat <<EOF
+clear
+echo '┌─ PLAYGROUND ($ID · $MODE) ───────────────────────'
+echo '│ TARGET = '"\$TARGET"
+echo '│'
+echo '│ Contoh perintah:'
+echo '│   curl -s \$TARGET/'
+echo '│   curl -s \$TARGET/ --data-urlencode "host=127.0.0.1"'
+echo '│   nmap -sV \$TARGET'
+echo '│'
+echo '│ Brief : machines/$ID/README.md   (hint, tanpa spoiler)'
+echo '│ Writeup: machines/$ID/solution/WRITEUP.md  (SPOILER)'
+echo '│ Pindah panel: Ctrl-b lalu panah kiri/kanan'
+echo '└──────────────────────────────────────────────────'
+EOF
+)
+
+tmux new-session -d -s "$SESSION" -n lab -c "$ROOT" -x 220 -y 50
+tmux set-option -t "$SESSION" mouse on \; \
+     set-option -t "$SESSION" pane-border-status top \; \
+     set-option -t "$SESSION" pane-border-format " #{pane_index} #{pane_title} " >/dev/null
+
+# Panel 0 = MESIN (kiri)
+tmux select-pane  -t "${SESSION}:lab.0" -T "MESIN:$ID"
+tmux send-keys    -t "${SESSION}:lab.0" "$SERVER_PANE" C-m
+
+# Panel 1 = PLAYGROUND (kanan)
+tmux split-window -h -t "${SESSION}:lab" -c "$ROOT"
+tmux select-pane  -t "${SESSION}:lab.1" -T "PLAYGROUND"
+tmux send-keys    -t "${SESSION}:lab.1" "export TARGET='$TARGET'" C-m
+tmux send-keys    -t "${SESSION}:lab.1" "$PLAY_INTRO" C-m
+
+tmux select-pane -t "${SESSION}:lab.1"   # fokus ke playground
+
+[ -n "${TMUX:-}" ] && exec tmux switch-client -t "$SESSION" || exec tmux attach -t "$SESSION"

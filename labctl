@@ -146,6 +146,12 @@ cmd_lite(){
       if [ -f "$pidf" ] && kill -0 "$(cat "$pidf")" 2>/dev/null; then
         warn "$id sudah jalan (pid $(cat "$pidf"))"; return 0
       fi
+      # Tolak kalau port sudah dipakai proses lain (cek via /dev/tcp, tanpa tool luar).
+      if (exec 3<>"/dev/tcp/$BIND/$port") 2>/dev/null; then
+        exec 3>&- 3<&-
+        err "port $port sudah dipakai. Hentikan dulu: ./labctl lite down $id  (atau proses lain di port itu)"
+        exit 1
+      fi
       rm -rf "$inst"; mkdir -p "$inst"
       local src dst
       src=$(pj_keys "$j" lite.copy | head -1)
@@ -164,7 +170,7 @@ cmd_lite(){
         ok "jalan: http://${BIND}:${port}  (pid $(cat "$pidf"))"
         local note; note=$(pj_get "$j" lite.note); [ -n "$note" ] && printf '    %s\n' "$note"
       else
-        err "gagal start. Log:"; cat "$inst/.log"; exit 1
+        rm -f "$pidf"; err "gagal start. Log:"; cat "$inst/.log"; exit 1
       fi ;;
     down)
       if [ -f "$pidf" ] && kill "$(cat "$pidf")" 2>/dev/null; then

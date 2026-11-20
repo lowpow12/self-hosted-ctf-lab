@@ -33,6 +33,38 @@ Mau diakses dari perangkat lain di WiFi yang sama:
 LAB_BIND=0.0.0.0 ./labctl lite up 01-pingboard
 ```
 
+## Terminal terpisah dengan tmux (disarankan di Termux)
+
+Supaya bisa bolak-balik antara **mesin** (server) dan **playground** (sisi
+penyerang) dalam satu layar, pakai `ctf-tmux`:
+
+```bash
+./ctf-tmux 01-pingboard          # lite (default)
+./ctf-tmux 01-pingboard docker   # mode docker
+```
+
+Membuka sesi tmux dua panel:
+
+```
+┌─ MESIN:01-pingboard ─────┬─ PLAYGROUND ───────────────┐
+│ server jalan di sini,    │ shell penyerang,           │
+│ log tiap request masuk   │ $TARGET sudah di-set,       │
+│ tampil langsung          │ + contoh perintah           │
+└──────────────────────────┴────────────────────────────┘
+```
+
+Navigasi tmux:
+
+| Tombol | Fungsi |
+|---|---|
+| `Ctrl-b` lalu `←`/`→` | pindah antar panel |
+| `Ctrl-b` lalu `z` | zoom/unzoom panel aktif (fokus satu panel) |
+| `Ctrl-b` lalu `d` | detach (mesin tetap jalan di background) |
+| ketik `exit` di panel mesin | menutup sesi → mesin otomatis di-down |
+
+Menutup/kill sesi otomatis men-`down` mesinnya. `$TARGET` di panel playground
+sudah berisi URL mesin, jadi bisa langsung `curl $TARGET/ ...`.
+
 ## Mode docker (di PC)
 
 ```bash
