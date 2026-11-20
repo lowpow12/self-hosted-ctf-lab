@@ -18,20 +18,92 @@ NetHunter di Termux tidak bisa menjalankan daemon Docker (tanpa cgroup/root),
 jadi di HP pakai **lite**; untuk root/privesc pindahkan repo ke mesin ber-Docker
 dan pakai **docker**. Kode mesinnya sama.
 
-## Mulai cepat (lite, di NetHunter)
+## Setup pertama kali (langkah demi langkah)
+
+Baru pertama pakai? Ikuti urutan ini. Semua perintah dijalankan **dari dalam
+folder `ctf-lab`**, jadi masuk dulu ke foldernya:
 
 ```bash
-cp flags.env.example flags.env      # ganti nilai flag di dalamnya
-./labctl list                       # lihat daftar mesin
-./labctl lite up 01-pingboard       # jalankan → http://127.0.0.1:9001
-./labctl lite status 01-pingboard
-./labctl lite down 01-pingboard
+cd ~/projects/ctf-lab
 ```
 
-Mau diakses dari perangkat lain di WiFi yang sama:
+**Langkah 1 — Siapkan file flag.** Flag adalah "harta" yang Anda cari di tiap
+mesin (teks seperti `FLAG{...}`). Salin file contoh menjadi file asli:
+
+```bash
+cp flags.env.example flags.env
+```
+
+File `flags.env` ini sudah berisi flag siap pakai, jadi **boleh langsung lanjut**.
+Kalau mau ganti isinya nanti, buka dengan editor apa pun (mis. `nano flags.env`).
+File ini tidak ikut masuk git, jadi aman diubah.
+
+**Langkah 2 — Lihat daftar mesin yang tersedia.**
+
+```bash
+./labctl list
+```
+
+Akan muncul tabel berisi ID mesin (mis. `01-pingboard`), tingkat kesulitan, dan
+port. **ID itulah** yang dipakai di perintah berikutnya.
+
+**Langkah 3 — Nyalakan satu mesin.**
+
+```bash
+./labctl lite up 01-pingboard
+```
+
+Kalau berhasil, muncul tulisan hijau seperti:
+
+```
+[+] jalan: http://127.0.0.1:9001  (pid 5572)
+```
+
+Itu artinya mesin sudah hidup. `http://127.0.0.1:9001` adalah **alamat target**
+Anda — buka di browser HP atau serang pakai `curl`.
+
+**Langkah 4 — Cek apakah mesin masih hidup (opsional, kapan saja).**
+
+```bash
+./labctl lite status 01-pingboard
+```
+
+- `UP` = mesin sedang jalan.
+- `down` = mesin mati.
+
+> 💡 **Lebih enak pakai tmux.** Daripada menjalankan server dan serangan di
+> terminal yang sama, pakai `./ctf-tmux 01-pingboard` (lihat bagian berikutnya).
+> Itu otomatis membuka dua panel: satu untuk mesin, satu untuk menyerang.
+
+**Mau diakses dari perangkat lain** di WiFi yang sama (mis. serang dari laptop):
+
 ```bash
 LAB_BIND=0.0.0.0 ./labctl lite up 01-pingboard
 ```
+
+Lalu buka `http://<IP-HP-Anda>:9001` dari perangkat lain.
+
+## Mematikan mesin (shutdown)
+
+Kalau sudah selesai latihan, **matikan mesinnya** supaya tidak terus memakan
+baterai/RAM dan port-nya bebas lagi.
+
+**Mematikan satu mesin:**
+
+```bash
+./labctl lite down 01-pingboard
+```
+
+Muncul `[+] dihentikan: 01-pingboard` → berarti sudah mati. Cek ulang dengan
+`./labctl lite status 01-pingboard` (harus menampilkan `down`).
+
+**Kalau Anda pakai tmux (`ctf-tmux`):** cukup ketik `exit` di panel mesin, atau
+tutup sesinya — mesin **otomatis dimatikan**, tidak perlu `down` manual.
+
+**Lupa nama mesin yang sedang jalan?** Lihat statusnya satu per satu lewat
+`./labctl list` (kolom port) lalu cek `status`, atau matikan yang Anda ingat.
+Menutup terminal / HP juga akan menghentikan mesin lite (karena ia hanya proses
+biasa), tapi lebih rapi kalau di-`down` dulu.
 
 ## Terminal terpisah dengan tmux (disarankan di Termux)
 
