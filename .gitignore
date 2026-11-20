@@ -4,6 +4,10 @@ flags.env
 # Lite-mode runtime state
 .run/
 
+# Compiled pwn artifacts & runtime flag files (kalau ada yang build in-place)
+machines/*/app/vuln
+flag.txt
+
 # Editor / OS noise
 *.swp
 .DS_Store

@@ -1,0 +1,17 @@
+{
+  "id": "08-securebox",
+  "name": "SecureBox",
+  "difficulty": "medium",
+  "category": "pwn",
+  "techniques": ["stack-buffer-overflow", "memory-corruption", "variable-overwrite"],
+  "description": "Layanan pengecek kata sandi (binary). Hubungi dengan nc. Luapkan buffernya.",
+  "ports": [{ "container": 9000, "host": 8008 }],
+  "flags": ["user"],
+  "lite": {
+    "port": 9008,
+    "copy": { "app": "box" },
+    "cmd": ["python3", "box/serve.py", "{bind}", "{port}"],
+    "flag_files": { "user": "box/flag.txt" },
+    "note": "Mesin pwn: hubungi dengan 'nc 127.0.0.1 9008'. Binary dikompilasi otomatis saat pertama up (butuh gcc)."
+  }
+}

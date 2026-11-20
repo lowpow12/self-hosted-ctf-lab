@@ -1,0 +1,17 @@
+{
+  "id": "07-tokenforge",
+  "name": "TokenForge",
+  "difficulty": "medium",
+  "category": "web",
+  "techniques": ["jwt-alg-none", "jwt-forgery", "weak-hmac-secret"],
+  "description": "Sesi berbasis JWT. Role Anda ada di dalam token. Hanya admin yang lihat rahasia.",
+  "ports": [{ "container": 80, "host": 8007 }],
+  "flags": ["user"],
+  "lite": {
+    "port": 9007,
+    "copy": { "app": "www" },
+    "cmd": ["php", "-S", "{bind}:{port}", "-t", "www"],
+    "flag_files": { "user": "user.txt" },
+    "note": "Login: password 'letmein'. JWT verifier menerima alg:none; secret HMAC juga lemah."
+  }
+}

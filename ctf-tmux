@@ -7,11 +7,11 @@
 #   ./ctf-tmux 01-pingboard            # mode lite (default, cocok di NetHunter)
 #   ./ctf-tmux 01-pingboard docker     # mode docker (di PC ber-Docker)
 #
-# Menutup sesi (kill) otomatis men-down mesin. Set LAB_BIND=0.0.0.0 untuk
-# akses dari perangkat lain.
+# Mode lite: server jalan di depan pada panel mesin, jadi menutup sesi otomatis
+# menghentikannya. Set LAB_BIND=0.0.0.0 untuk akses dari perangkat lain.
 #
 # Navigasi tmux: Ctrl-b lalu ← → (pindah panel) · Ctrl-b z (zoom panel) ·
-# Ctrl-b d (detach, mesin tetap jalan) · ketik `exit` di panel untuk menutup.
+# Ctrl-b d (detach, mesin tetap jalan) · Ctrl-b & (tutup sesi, jawab y).
 
 set -euo pipefail
 
@@ -33,13 +33,22 @@ if [ "$MODE" = "docker" ]; then
 elif [ "$MODE" = "lite" ]; then
   python3 "$ROOT/.pj.py" "$J" has lite || { echo "[x] mesin '$ID' tidak punya mode lite. Coba: ./ctf-tmux $ID docker" >&2; exit 1; }
   PORT="$(python3 "$ROOT/.pj.py" "$J" get lite.port)"
-  UP_CMD="./labctl lite up $ID && tail -n +1 -f .run/$ID/.log"
-  DOWN_CMD="./labctl lite down $ID"
+  # 'run' = foreground: server mati otomatis saat panel/sesi ditutup. Log server
+  # tampil langsung di panel ini.
+  UP_CMD="./labctl lite run $ID"
+  DOWN_CMD=":"
 else
   echo "[x] mode tidak dikenal: '$MODE' (lite|docker)" >&2; exit 1
 fi
 
-TARGET="http://${BIND}:${PORT}"
+CATEGORY="$(python3 "$ROOT/.pj.py" "$J" get category)"
+if [ "$CATEGORY" = "pwn" ]; then
+  TARGET="${BIND} ${PORT}"                 # dipakai sebagai: nc $TARGET
+  EX_LINE='echo "|   nc \$TARGET          (lalu ketik payload, lihat README)"'
+else
+  TARGET="http://${BIND}:${PORT}"
+  EX_LINE='echo "|   curl -s \$TARGET/"'
+fi
 
 # Sudah ada? Tinggal masuk.
 if tmux has-session -t "$SESSION" 2>/dev/null; then
@@ -48,23 +57,22 @@ if tmux has-session -t "$SESSION" 2>/dev/null; then
 fi
 
 # Panel MESIN: jalankan server, dan saat panel ditutup -> down mesin.
-SERVER_PANE="trap '$DOWN_CMD' EXIT INT TERM; $UP_CMD"
+# HUP wajib ikut: tmux mengirim SIGHUP saat panel/sesi ditutup, dan server
+# di-nohup (abai HUP sendiri), jadi trap inilah yang memanggil down.
+SERVER_PANE="trap '$DOWN_CMD' EXIT INT TERM HUP; $UP_CMD"
 
 # Cheatsheet playground.
 PLAY_INTRO=$(cat <<EOF
 clear
-echo '┌─ PLAYGROUND ($ID · $MODE) ───────────────────────'
-echo '│ TARGET = '"\$TARGET"
-echo '│'
-echo '│ Contoh perintah:'
-echo '│   curl -s \$TARGET/'
-echo '│   curl -s \$TARGET/ --data-urlencode "host=127.0.0.1"'
-echo '│   nmap -sV \$TARGET'
-echo '│'
-echo '│ Brief : machines/$ID/README.md   (hint, tanpa spoiler)'
-echo '│ Writeup: machines/$ID/solution/WRITEUP.md  (SPOILER)'
-echo '│ Pindah panel: Ctrl-b lalu panah kiri/kanan'
-echo '└──────────────────────────────────────────────────'
+echo '== PLAYGROUND ($ID - $MODE) =='
+echo "TARGET = \$TARGET"
+echo ''
+echo 'Contoh:'
+$EX_LINE
+echo ''
+echo 'Brief  : machines/$ID/README.md   (hint, tanpa spoiler)'
+echo 'Writeup: machines/$ID/solution/WRITEUP.md  (SPOILER)'
+echo 'Pindah panel: Ctrl-b lalu panah kiri/kanan'
 EOF
 )
 

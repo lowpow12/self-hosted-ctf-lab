@@ -97,8 +97,8 @@ baterai/RAM dan port-nya bebas lagi.
 Muncul `[+] dihentikan: 01-pingboard` → berarti sudah mati. Cek ulang dengan
 `./labctl lite status 01-pingboard` (harus menampilkan `down`).
 
-**Kalau Anda pakai tmux (`ctf-tmux`):** cukup ketik `exit` di panel mesin, atau
-tutup sesinya — mesin **otomatis dimatikan**, tidak perlu `down` manual.
+**Kalau Anda pakai tmux (`ctf-tmux`):** tutup sesinya (`Ctrl-b` lalu `&`) — mesin
+jalan di depan pada panelnya, jadi ikut **berhenti otomatis**, tidak perlu `down`.
 
 **Lupa nama mesin yang sedang jalan?** Lihat statusnya satu per satu lewat
 `./labctl list` (kolom port) lalu cek `status`, atau matikan yang Anda ingat.
@@ -124,11 +124,14 @@ Setelah dijalankan, layar terbelah dua panel:
 
 ```
 ┌─ MESIN:01-pingboard ─────┬─ PLAYGROUND ───────────────┐
-│ server jalan di sini,    │ shell penyerang,           │
-│ log tiap request masuk   │ $TARGET sudah di-set,       │
-│ tampil langsung          │ + contoh perintah           │
+│ server jalan di sini     │ shell penyerang,           │
+│ (log langsung tampil);   │ $TARGET sudah di-set,       │
+│ panel ini "sibuk"        │ + contoh perintah           │
 └──────────────────────────┴────────────────────────────┘
 ```
+
+Panel **mesin** menjalankan server di depan (foreground), jadi log-nya tampil
+langsung. Panel **playground** adalah shell biasa untuk menyerang.
 
 Navigasi tmux:
 
@@ -137,10 +140,11 @@ Navigasi tmux:
 | `Ctrl-b` lalu `←`/`→` | pindah antar panel |
 | `Ctrl-b` lalu `z` | zoom/unzoom panel aktif (fokus satu panel) |
 | `Ctrl-b` lalu `d` | detach (mesin tetap jalan di background) |
-| ketik `exit` di panel mesin | menutup sesi → mesin otomatis di-down |
+| `Ctrl-b` lalu `&` | tutup sesi (jawab `y`) → mesin otomatis berhenti |
 
-Menutup/kill sesi otomatis men-`down` mesinnya. `$TARGET` di panel playground
-sudah berisi URL mesin, jadi bisa langsung `curl $TARGET/ ...`.
+Karena mesin jalan di depan pada panelnya, **menutup sesi/panel otomatis
+menghentikan mesin** — tidak perlu `down` manual. `$TARGET` di panel playground
+sudah berisi alamat mesin (URL untuk web, `host port` untuk pwn).
 
 ## Mode docker (di PC)
 
@@ -199,5 +203,7 @@ ctf-lab/
 | 04-cookiejar | easy | web (auth) | authentication bypass, insecure cookie / role tampering |
 | 05-renderbox | medium | web (SSTI) | server-side template injection, code injection, RCE |
 | 06-saveslot | medium | web (deserialization) | PHP object injection, insecure unserialize, file read |
+| 07-tokenforge | medium | web / crypto (JWT) | JWT alg:none bypass, forgery, weak HMAC secret |
+| 08-securebox | medium | pwn / binary | stack buffer overflow, variable overwrite |
 
 Tambah mesin baru: lihat [`docs/ADDING-MACHINES.md`](docs/ADDING-MACHINES.md).

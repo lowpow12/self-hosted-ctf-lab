@@ -9,6 +9,7 @@
 #   ./labctl list
 #   ./labctl docker up 01-pingboard | down | build | status
 #   ./labctl lite  up 01-pingboard | down | status
+#   ./labctl check 01-pingboard 'FLAG{...}'   # cek jawaban flag Anda
 #   ./labctl flags                 # tampilkan flag mana yang terpasang
 #
 # Flag dibaca dari ./flags.env (lihat flags.env.example). Kalau tidak ada,
@@ -86,6 +87,32 @@ cmd_flags(){
   done
 }
 
+# ---- check (penilaian flag) ------------------------------------------------
+
+cmd_check(){
+  load_flags
+  local id="${1:-}"; local guess="${2:-}"
+  [ -n "$id" ] && [ -n "$guess" ] || {
+    err "pemakaian: ./labctl check <id-mesin> '<FLAG{...}>'"; exit 1; }
+  require_machine "$id"
+  local j; j="$(machine_dir "$id")/machine.json"
+  # Normalisasi: buang spasi di tepi.
+  guess="$(printf '%s' "$guess" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+  local matched=""
+  for slot in $(pj_arr "$j" flags); do
+    local v; v="$(flag_value "$id" "$slot")"
+    case "$v" in FLAG\{placeholder_*) continue;; esac
+    if [ "$guess" = "$v" ]; then matched="$slot"; break; fi
+  done
+  if [ -n "$matched" ]; then
+    ok "BENAR! $id/$matched terpecahkan."
+    printf '    %s\n' "Selamat. Catat di progres Anda."
+  else
+    err "Salah. Flag itu tidak cocok untuk mesin '$id'. Coba lagi."
+    exit 2
+  fi
+}
+
 # ---- docker mode -----------------------------------------------------------
 
 docker_ok(){
@@ -129,6 +156,31 @@ cmd_docker(){
 
 # ---- lite mode (tanpa Docker) ---------------------------------------------
 
+# Siapkan instance lite: cek port, salin app, tulis flag, bangun perintah.
+# Hasil perintah diisi ke array global PREP_CMD[].
+PREP_CMD=()
+lite_prepare(){
+  local j="$1" inst="$2" port="$3" id="$4" mdir="$5"
+  if (exec 3<>"/dev/tcp/$BIND/$port") 2>/dev/null; then
+    exec 3>&- 3<&-
+    err "port $port sudah dipakai. Hentikan dulu: ./labctl lite down $id  (atau proses lain di port itu)"
+    exit 1
+  fi
+  rm -rf "$inst"; mkdir -p "$inst"
+  local src dst
+  src=$(pj_keys "$j" lite.copy | head -1)
+  dst=$(pj_get "$j" "lite.copy.$src")
+  cp -r "$mdir/$src" "$inst/$dst"
+  local uf; uf=$(pj_get "$j" lite.flag_files.user)
+  [ -n "$uf" ] && flag_value "$id" user > "$inst/$uf"
+  PREP_CMD=()
+  local part
+  while IFS= read -r part; do
+    part="${part//\{bind\}/$BIND}"; part="${part//\{port\}/$port}"
+    PREP_CMD+=("$part")
+  done < <(pj_arr "$j" lite.cmd)
+}
+
 cmd_lite(){
   load_flags
   local action="${1:-}"; local id="${2:-}"
@@ -146,35 +198,32 @@ cmd_lite(){
       if [ -f "$pidf" ] && kill -0 "$(cat "$pidf")" 2>/dev/null; then
         warn "$id sudah jalan (pid $(cat "$pidf"))"; return 0
       fi
-      # Tolak kalau port sudah dipakai proses lain (cek via /dev/tcp, tanpa tool luar).
-      if (exec 3<>"/dev/tcp/$BIND/$port") 2>/dev/null; then
-        exec 3>&- 3<&-
-        err "port $port sudah dipakai. Hentikan dulu: ./labctl lite down $id  (atau proses lain di port itu)"
-        exit 1
-      fi
-      rm -rf "$inst"; mkdir -p "$inst"
-      local src dst
-      src=$(pj_keys "$j" lite.copy | head -1)
-      dst=$(pj_get "$j" "lite.copy.$src")
-      cp -r "$mdir/$src" "$inst/$dst"
-      local uf; uf=$(pj_get "$j" lite.flag_files.user)
-      [ -n "$uf" ] && flag_value "$id" user > "$inst/$uf"
-      local -a cmd=()
-      while IFS= read -r part; do
-        part="${part//\{bind\}/$BIND}"; part="${part//\{port\}/$port}"
-        cmd+=("$part")
-      done < <(pj_arr "$j" lite.cmd)
+      lite_prepare "$j" "$inst" "$port" "$id" "$mdir"   # mengisi PREP_CMD[]
       # Background subshell yang langsung `exec` jadi server, supaya $! = PID server
       # yang tersimpan benar-benar proses itu (bukan subshell perantara).
-      ( cd "$inst" && exec nohup "${cmd[@]}" >"$inst/.log" 2>&1 ) &
+      ( cd "$inst" && exec nohup "${PREP_CMD[@]}" >"$inst/.log" 2>&1 ) &
       echo $! > "$pidf"
       sleep 0.5
       if kill -0 "$(cat "$pidf")" 2>/dev/null; then
-        ok "jalan: http://${BIND}:${port}  (pid $(cat "$pidf"))"
+        local cat_; cat_=$(pj_get "$j" category)
+        if [ "$cat_" = "pwn" ]; then
+          ok "jalan: nc ${BIND} ${port}  (pid $(cat "$pidf"))"
+        else
+          ok "jalan: http://${BIND}:${port}  (pid $(cat "$pidf"))"
+        fi
         local note; note=$(pj_get "$j" lite.note); [ -n "$note" ] && printf '    %s\n' "$note"
       else
         rm -f "$pidf"; err "gagal start. Log:"; cat "$inst/.log"; exit 1
       fi ;;
+    run)
+      # Foreground: server menggantikan proses ini (tanpa nohup), jadi ia MATI
+      # otomatis saat terminal/panel tmux ditutup. Dipakai oleh ctf-tmux.
+      lite_prepare "$j" "$inst" "$port" "$id" "$mdir"
+      echo $$ > "$pidf"             # $$ tetap jadi PID server setelah exec
+      local cat_; cat_=$(pj_get "$j" category)
+      if [ "$cat_" = "pwn" ]; then info "SecureBox siap: nc ${BIND} ${port}"
+      else info "siap: http://${BIND}:${port}"; fi
+      cd "$inst" && exec "${PREP_CMD[@]}" ;;
     down)
       if [ -f "$pidf" ] && kill "$(cat "$pidf")" 2>/dev/null; then
         ok "dihentikan: $id"; rm -f "$pidf"
@@ -199,6 +248,7 @@ usage(){ sed -n '2,22p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 case "${1:-}" in
   list)    cmd_list ;;
   flags)   cmd_flags ;;
+  check)   shift; cmd_check "$@" ;;
   docker)  shift; cmd_docker "$@" ;;
   lite)    shift; cmd_lite "$@" ;;
   ""|-h|--help|help) usage ;;
