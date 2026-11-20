@@ -1,0 +1,9 @@
+# Real flag values — never commit
+flags.env
+
+# Lite-mode runtime state
+.run/
+
+# Editor / OS noise
+*.swp
+.DS_Store

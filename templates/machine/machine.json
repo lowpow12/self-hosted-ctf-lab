@@ -1,0 +1,17 @@
+{
+  "id": "NN-nama",
+  "name": "Nama Mesin",
+  "difficulty": "easy|medium|hard|insane",
+  "category": "web|pwn|crypto|privesc|network|misc",
+  "techniques": ["sebutkan", "teknik", "yang-disimulasikan"],
+  "description": "Satu-dua kalimat skenario, tanpa bocoran.",
+  "ports": [{ "container": 80, "host": 80NN }],
+  "flags": ["user", "root"],
+  "lite": {
+    "port": 90NN,
+    "copy": { "app": "www" },
+    "cmd": ["php", "-S", "{bind}:{port}", "-t", "www"],
+    "flag_files": { "user": "user.txt" },
+    "note": "Catatan singkat soal keterbatasan mode lite untuk mesin ini."
+  }
+}

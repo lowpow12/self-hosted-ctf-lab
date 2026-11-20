@@ -1,0 +1,17 @@
+{
+  "id": "01-pingboard",
+  "name": "PingBoard",
+  "difficulty": "easy",
+  "category": "web",
+  "techniques": ["command-injection", "filter-bypass", "sudo-misconfiguration"],
+  "description": "Panel diagnostik jaringan internal milik tim NetOps. Katanya cuma bisa nge-ping...",
+  "ports": [{ "container": 80, "host": 8001 }],
+  "flags": ["user", "root"],
+  "lite": {
+    "port": 9001,
+    "copy": { "app": "www" },
+    "cmd": ["php", "-S", "{bind}:{port}", "-t", "www"],
+    "flag_files": { "user": "user.txt" },
+    "note": "Mode lite hanya punya flag user (tanpa privesc). user.txt ada satu folder di atas docroot."
+  }
+}

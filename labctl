@@ -1,0 +1,197 @@
+#!/usr/bin/env bash
+# labctl — manager untuk CTF Lab.
+#
+# Dua mode:
+#   docker  : build & jalankan mesin pakai Docker (untuk PC/VPS yang punya Docker).
+#   lite    : jalankan mesin ringan langsung sebagai proses di NetHunter (tanpa Docker).
+#
+# Pemakaian:
+#   ./labctl list
+#   ./labctl docker up 01-pingboard | down | build | status
+#   ./labctl lite  up 01-pingboard | down | status
+#   ./labctl flags                 # tampilkan flag mana yang terpasang
+#
+# Flag dibaca dari ./flags.env (lihat flags.env.example). Kalau tidak ada,
+# dipakai nilai placeholder. Butuh python3 (tanpa jq). Set LAB_BIND=0.0.0.0
+# untuk akses dari perangkat lain di jaringan.
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MACHINES="$ROOT/machines"
+RUNDIR="$ROOT/.run"
+BIND="${LAB_BIND:-127.0.0.1}"
+PJ="python3 $ROOT/.pj.py"
+
+c_red=$'\e[31m'; c_grn=$'\e[32m'; c_ylw=$'\e[33m'; c_cyn=$'\e[36m'; c_rst=$'\e[0m'
+info(){ printf '%s[*]%s %s\n' "$c_cyn" "$c_rst" "$*"; }
+ok(){   printf '%s[+]%s %s\n' "$c_grn" "$c_rst" "$*"; }
+warn(){ printf '%s[!]%s %s\n' "$c_ylw" "$c_rst" "$*"; }
+err(){  printf '%s[x]%s %s\n' "$c_red" "$c_rst" "$*" >&2; }
+
+pj_get(){  $PJ "$1" get  "$2" "${3:-}"; }
+pj_arr(){  $PJ "$1" arr  "$2"; }
+pj_keys(){ $PJ "$1" keys "$2"; }
+pj_has(){  $PJ "$1" has  "$2"; }
+
+# ---- helpers ---------------------------------------------------------------
+
+load_flags(){
+  [ -f "$ROOT/flags.env" ] && set -a && . "$ROOT/flags.env" && set +a || true
+}
+
+# flag_value <MACHINEID> <SLOT>  -> echo nilai flag (atau placeholder)
+flag_value(){
+  local mid slot var
+  mid="$(echo "$1" | sed 's/[^A-Za-z0-9]/_/g' | tr '[:lower:]' '[:upper:]')"
+  slot="$(echo "$2" | tr '[:lower:]' '[:upper:]')"
+  var="FLAG_${mid}_${slot}"
+  local def="FLAG{placeholder_${1}_${2}}"
+  echo "${!var:-$def}"
+}
+
+machine_dir(){ echo "$MACHINES/$1"; }
+
+require_machine(){
+  [ -d "$(machine_dir "$1")" ] && return 0
+  err "mesin '$1' tidak ada. Lihat: ./labctl list"; exit 1
+}
+
+# ---- list ------------------------------------------------------------------
+
+cmd_list(){
+  printf '%-16s %-8s %-10s %-6s %-6s %s\n' ID DIFF KATEGORI DOCKER LITE NAMA
+  printf '%-16s %-8s %-10s %-6s %-6s %s\n' "----------------" "--------" "----------" "------" "------" "----"
+  for d in "$MACHINES"/*/; do
+    [ -f "$d/machine.json" ] || continue
+    local j; j="$d/machine.json"
+    printf '%-16s %-8s %-10s %-6s %-6s %s\n' \
+      "$(pj_get "$j" id)" "$(pj_get "$j" difficulty)" "$(pj_get "$j" category)" \
+      "$(pj_get "$j" ports.0.host -)" "$(pj_get "$j" lite.port -)" "$(pj_get "$j" name)"
+  done
+}
+
+cmd_flags(){
+  load_flags
+  for d in "$MACHINES"/*/; do
+    [ -f "$d/machine.json" ] || continue
+    local j id; j="$d/machine.json"; id=$(pj_get "$j" id)
+    for slot in $(pj_arr "$j" flags); do
+      local v; v="$(flag_value "$id" "$slot")"
+      case "$v" in
+        FLAG\{placeholder_*) warn "$id/$slot : placeholder (set di flags.env)";;
+        *) ok "$id/$slot : terpasang";;
+      esac
+    done
+  done
+}
+
+# ---- docker mode -----------------------------------------------------------
+
+docker_ok(){
+  command -v docker >/dev/null 2>&1 || { err "docker tidak ada di host ini. Pakai mode 'lite', atau jalankan di PC."; exit 1; }
+  docker info >/dev/null 2>&1 || { err "docker daemon tidak jalan / tidak ada izin."; exit 1; }
+}
+
+cmd_docker(){
+  docker_ok; load_flags
+  local action="${1:-}"; local id="${2:-}"
+  [ -n "$id" ] || { err "sebutkan id mesin, mis: ./labctl docker up 01-pingboard"; exit 1; }
+  require_machine "$id"
+  local j; j="$(machine_dir "$id")/machine.json"
+  local img="ctflab/$id"
+  local cport hport
+  cport=$(pj_get "$j" ports.0.container)
+  hport=$(pj_get "$j" ports.0.host)
+
+  case "$action" in
+    build)
+      info "build image $img ..."
+      docker build -t "$img" "$(machine_dir "$id")"
+      ok "image $img siap." ;;
+    up)
+      docker image inspect "$img" >/dev/null 2>&1 || docker build -t "$img" "$(machine_dir "$id")"
+      local -a envs=()
+      for slot in $(pj_arr "$j" flags); do
+        envs+=( -e "FLAG_$(echo "$slot"|tr a-z A-Z)=$(flag_value "$id" "$slot")" )
+      done
+      docker rm -f "ctflab-$id" >/dev/null 2>&1 || true
+      docker run -d --name "ctflab-$id" -p "${BIND}:${hport}:${cport}" "${envs[@]}" "$img" >/dev/null
+      ok "jalan: http://${BIND}:${hport}  (container ctflab-$id)" ;;
+    down)
+      docker rm -f "ctflab-$id" >/dev/null 2>&1 && ok "dihentikan: $id" || warn "tidak jalan: $id" ;;
+    status)
+      docker ps --filter "name=ctflab-$id" --format 'table {{.Names}}\t{{.Status}}\t{{.Ports}}' ;;
+    *)
+      err "aksi docker tidak dikenal: '$action' (build|up|down|status)"; exit 1 ;;
+  esac
+}
+
+# ---- lite mode (tanpa Docker) ---------------------------------------------
+
+cmd_lite(){
+  load_flags
+  local action="${1:-}"; local id="${2:-}"
+  [ -n "$id" ] || { err "sebutkan id mesin, mis: ./labctl lite up 01-pingboard"; exit 1; }
+  require_machine "$id"
+  local j mdir; j="$(machine_dir "$id")/machine.json"; mdir="$(machine_dir "$id")"
+  pj_has "$j" lite || { err "mesin '$id' tidak punya mode lite."; exit 1; }
+
+  local inst="$RUNDIR/$id"
+  local pidf="$inst/.pid"
+  local port; port=$(pj_get "$j" lite.port)
+
+  case "$action" in
+    up)
+      if [ -f "$pidf" ] && kill -0 "$(cat "$pidf")" 2>/dev/null; then
+        warn "$id sudah jalan (pid $(cat "$pidf"))"; return 0
+      fi
+      rm -rf "$inst"; mkdir -p "$inst"
+      local src dst
+      src=$(pj_keys "$j" lite.copy | head -1)
+      dst=$(pj_get "$j" "lite.copy.$src")
+      cp -r "$mdir/$src" "$inst/$dst"
+      local uf; uf=$(pj_get "$j" lite.flag_files.user)
+      [ -n "$uf" ] && flag_value "$id" user > "$inst/$uf"
+      local -a cmd=()
+      while IFS= read -r part; do
+        part="${part//\{bind\}/$BIND}"; part="${part//\{port\}/$port}"
+        cmd+=("$part")
+      done < <(pj_arr "$j" lite.cmd)
+      ( cd "$inst" && nohup "${cmd[@]}" >"$inst/.log" 2>&1 & echo $! > "$pidf" )
+      sleep 0.5
+      if kill -0 "$(cat "$pidf")" 2>/dev/null; then
+        ok "jalan: http://${BIND}:${port}  (pid $(cat "$pidf"))"
+        local note; note=$(pj_get "$j" lite.note); [ -n "$note" ] && printf '    %s\n' "$note"
+      else
+        err "gagal start. Log:"; cat "$inst/.log"; exit 1
+      fi ;;
+    down)
+      if [ -f "$pidf" ] && kill "$(cat "$pidf")" 2>/dev/null; then
+        ok "dihentikan: $id"; rm -f "$pidf"
+      else
+        warn "tidak jalan: $id"
+      fi ;;
+    status)
+      if [ -f "$pidf" ] && kill -0 "$(cat "$pidf")" 2>/dev/null; then
+        ok "$id : UP  http://${BIND}:${port}  (pid $(cat "$pidf"))"
+      else
+        info "$id : down"
+      fi ;;
+    *)
+      err "aksi lite tidak dikenal: '$action' (up|down|status)"; exit 1 ;;
+  esac
+}
+
+# ---- main ------------------------------------------------------------------
+
+usage(){ sed -n '2,22p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+
+case "${1:-}" in
+  list)    cmd_list ;;
+  flags)   cmd_flags ;;
+  docker)  shift; cmd_docker "$@" ;;
+  lite)    shift; cmd_lite "$@" ;;
+  ""|-h|--help|help) usage ;;
+  *) err "perintah tidak dikenal: '$1'"; usage; exit 1 ;;
+esac
