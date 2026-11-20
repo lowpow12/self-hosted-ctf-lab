@@ -7,6 +7,8 @@
 | Port | Docker: `8006` · Lite: `9006` |
 | Flag | `user` |
 
+> 📘 **Baru di topik ini?** Baca modulnya dulu: [`MATERI.md`](MATERI.md)
+
 ## Skenario
 
 SaveSlot menyimpan progres game Anda di sebuah cookie. Isi cookie itu adalah

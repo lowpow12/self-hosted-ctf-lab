@@ -7,6 +7,10 @@ Kali NetHunter (Termux, aarch64, rootless).
 > ⚠️ **Hanya untuk latihan di lingkungan sendiri.** Mesin-mesin di sini sengaja
 > rentan. Jangan pernah expose ke internet publik. Default bind `127.0.0.1`.
 
+> 📚 **Mau belajar terstruktur?** Ikuti [`KURIKULUM.md`](KURIKULUM.md) — tiap lab
+> punya modul materi (`machines/<id>/MATERI.md`) yang menjelaskan teorinya dulu,
+> lalu `./labctl check` menuntun ke lab berikutnya.
+
 ## Dua mode menjalankan
 
 | Mode | Untuk apa | Syarat |
@@ -17,6 +21,12 @@ Kali NetHunter (Termux, aarch64, rootless).
 NetHunter di Termux tidak bisa menjalankan daemon Docker (tanpa cgroup/root),
 jadi di HP pakai **lite**; untuk root/privesc pindahkan repo ke mesin ber-Docker
 dan pakai **docker**. Kode mesinnya sama.
+
+**Status pengujian:**
+- ✅ **Mode lite** — semua mesin sudah diuji end-to-end di NetHunter/Termux (aarch64).
+- ⚠️ **Mode docker** — Dockerfile ditulis mengikuti pola standar tetapi **belum
+  diverifikasi** (lingkungan pengembangan tidak punya Docker). Diharapkan jalan di
+  Linux ber-Docker; mohon laporkan jika ada yang perlu disesuaikan.
 
 ## Setup pertama kali (langkah demi langkah)
 

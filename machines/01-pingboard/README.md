@@ -7,6 +7,8 @@
 | Port | Docker: `8001` · Lite: `9001` |
 | Flag | `user` (`/home/pingu/user.txt`), `root` (`/root/root.txt`) |
 
+> 📘 **Baru di topik ini?** Baca modulnya dulu: [`MATERI.md`](MATERI.md)
+
 ## Skenario
 
 Tim NetOps punya panel diagnostik internal untuk nge-ping host. Setelah laporan

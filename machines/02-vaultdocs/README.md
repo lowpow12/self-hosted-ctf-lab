@@ -7,6 +7,8 @@
 | Port | Docker: `8002` · Lite: `9002` |
 | Flag | `user` |
 
+> 📘 **Baru di topik ini?** Baca modulnya dulu: [`MATERI.md`](MATERI.md)
+
 ## Skenario
 
 VaultDocs adalah portal untuk membaca dokumen internal. Anda memilih sebuah

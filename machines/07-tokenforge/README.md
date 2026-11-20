@@ -7,6 +7,8 @@
 | Port | Docker: `8007` · Lite: `9007` |
 | Flag | `user` |
 
+> 📘 **Baru di topik ini?** Baca modulnya dulu: [`MATERI.md`](MATERI.md)
+
 ## Skenario
 
 TokenForge memakai JWT (JSON Web Token) untuk sesi. Role Anda (`user`/`admin`)

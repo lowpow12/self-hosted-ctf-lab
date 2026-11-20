@@ -7,6 +7,8 @@
 | Port | Docker: `8005` · Lite: `9005` |
 | Flag | `user` |
 
+> 📘 **Baru di topik ini?** Baca modulnya dulu: [`MATERI.md`](MATERI.md)
+
 ## Skenario
 
 RenderBox membuat kartu ucapan. Bagian dinamis ditulis di antara `{{ }}` dan

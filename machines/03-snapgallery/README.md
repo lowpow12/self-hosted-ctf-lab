@@ -7,6 +7,8 @@
 | Port | Docker: `8003` · Lite: `9003` |
 | Flag | `user`, `root` (root hanya di mode docker) |
 
+> 📘 **Baru di topik ini?** Baca modulnya dulu: [`MATERI.md`](MATERI.md)
+
 ## Skenario
 
 SnapGallery membiarkan tim meng-upload foto. Katanya cuma menerima gambar.

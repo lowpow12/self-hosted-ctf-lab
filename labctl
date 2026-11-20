@@ -106,7 +106,21 @@ cmd_check(){
   done
   if [ -n "$matched" ]; then
     ok "BENAR! $id/$matched terpecahkan."
-    printf '    %s\n' "Selamat. Catat di progres Anda."
+    # Sarankan lab berikutnya (urutan folder).
+    local nxt=""; local prev=""
+    for d in "$MACHINES"/*/; do
+      [ -f "$d/machine.json" ] || continue
+      local mid; mid="$(basename "$d")"
+      if [ -n "$prev" ] && [ "$prev" = "$id" ]; then nxt="$mid"; break; fi
+      prev="$mid"
+    done
+    if [ -n "$nxt" ]; then
+      printf '    Lanjut ke lab berikutnya: %s\n' "$nxt"
+      printf '    Materi : machines/%s/MATERI.md\n' "$nxt"
+      printf '    Jalan  : ./ctf-tmux %s\n' "$nxt"
+    else
+      printf '    Itu lab terakhir. Semua modul selesai, mantap!\n'
+    fi
   else
     err "Salah. Flag itu tidak cocok untuk mesin '$id'. Coba lagi."
     exit 2

@@ -7,6 +7,8 @@
 | Port | Docker: `8008` · Lite: `9008` |
 | Flag | `user` |
 
+> 📘 **Baru di topik ini?** Baca modulnya dulu: [`MATERI.md`](MATERI.md)
+
 ## Skenario
 
 SecureBox adalah layanan pengecek kata sandi berupa **program biner** (bukan web).

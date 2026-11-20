@@ -7,6 +7,8 @@
 | Port | Docker: `8004` · Lite: `9004` |
 | Flag | `user` |
 
+> 📘 **Baru di topik ini?** Baca modulnya dulu: [`MATERI.md`](MATERI.md)
+
 ## Skenario
 
 CookieJar punya area member. Setelah login Anda jadi "member" biasa — tapi hanya
