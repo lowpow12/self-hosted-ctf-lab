@@ -10,6 +10,7 @@
 #   ./labctl docker up 01-pingboard | down | build | status
 #   ./labctl lite  up 01-pingboard | down | status
 #   ./labctl check 01-pingboard 'FLAG{...}'   # cek jawaban flag Anda
+#   ./labctl selftest lite|docker [id|all]    # uji otomatis: jalan+serang+verifikasi
 #   ./labctl flags                 # tampilkan flag mana yang terpasang
 #
 # Flag dibaca dari ./flags.env (lihat flags.env.example). Kalau tidak ada,
@@ -125,6 +126,79 @@ cmd_check(){
     err "Salah. Flag itu tidak cocok untuk mesin '$id'. Coba lagi."
     exit 2
   fi
+}
+
+# ---- selftest (otomatis: jalankan + serang + verifikasi tiap mesin) --------
+
+# Tunggu server siap. args: kategori port tries
+_sel_ready(){
+  local c="$1" p="$2" n="$3" i=0
+  while [ "$i" -lt "$n" ]; do
+    if [ "$c" = "pwn" ]; then
+      if (exec 3<>"/dev/tcp/$BIND/$p") 2>/dev/null; then exec 3>&- 3<&-; return 0; fi
+    else
+      curl -s -o /dev/null --max-time 2 "http://$BIND:$p/" 2>/dev/null && return 0
+    fi
+    i=$((i + 1)); sleep 0.5
+  done
+  return 1
+}
+
+cmd_selftest(){
+  load_flags
+  local mode="${1:-}" which="${2:-all}"
+  case "$mode" in
+    lite) ;;
+    docker) docker_ok ;;
+    *) err "pemakaian: ./labctl selftest <lite|docker> [id|all]"; exit 1 ;;
+  esac
+  local ids=""
+  if [ "$which" = "all" ]; then
+    for d in "$MACHINES"/*/; do [ -f "$d/machine.json" ] && ids="$ids $(basename "$d")"; done
+  else
+    require_machine "$which"; ids="$which"
+  fi
+
+  local pass=0 fail=0
+  for id in $ids; do
+    local j; j="$(machine_dir "$id")/machine.json"
+    local ex="$(machine_dir "$id")/solution/exploit.sh"
+    local cat_ port target got expect
+    cat_=$(pj_get "$j" category)
+    if [ "$mode" = "lite" ]; then
+      pj_has "$j" lite || { warn "$id : (lewati, tak ada mode lite)"; continue; }
+      port=$(pj_get "$j" lite.port)
+    else
+      port=$(pj_get "$j" ports.0.host)
+    fi
+    [ -f "$ex" ] || { warn "$id : (lewati, tak ada solver exploit.sh)"; continue; }
+
+    printf '%s[*]%s %-16s %s ... ' "$c_cyn" "$c_rst" "$id" "$mode"
+    # start (subshell agar 'exit' di dalam tidak membunuh selftest)
+    if [ "$mode" = "lite" ]; then ( cmd_lite up "$id" ) >/dev/null 2>&1
+    else ( cmd_docker up "$id" ) >/dev/null 2>&1; fi
+
+    if ! _sel_ready "$cat_" "$port" 60; then
+      printf '%sSERVER TAK SIAP%s\n' "$c_red" "$c_rst"; fail=$((fail + 1))
+      if [ "$mode" = "lite" ]; then ( cmd_lite down "$id" ) >/dev/null 2>&1; else ( cmd_docker down "$id" ) >/dev/null 2>&1; fi
+      continue
+    fi
+
+    if [ "$cat_" = "pwn" ]; then target="$BIND $port"; else target="http://$BIND:$port"; fi
+    got=$(TARGET="$target" sh "$ex" 2>/dev/null | grep -oE 'FLAG\{[^}]*\}' | head -n1)
+    expect=$(flag_value "$id" user)
+
+    if [ -n "$got" ] && [ "$got" = "$expect" ]; then
+      printf '%sPASS%s  %s\n' "$c_grn" "$c_rst" "$got"; pass=$((pass + 1))
+    else
+      printf '%sFAIL%s  (dapat: %s)\n' "$c_red" "$c_rst" "${got:-<kosong>}"; fail=$((fail + 1))
+    fi
+    if [ "$mode" = "lite" ]; then ( cmd_lite down "$id" ) >/dev/null 2>&1; else ( cmd_docker down "$id" ) >/dev/null 2>&1; fi
+  done
+
+  printf '\n'
+  if [ "$fail" -eq 0 ]; then ok "Selftest $mode: $pass PASS, 0 FAIL."
+  else err "Selftest $mode: $pass PASS, $fail FAIL."; return 1; fi
 }
 
 # ---- docker mode -----------------------------------------------------------
@@ -260,9 +334,10 @@ cmd_lite(){
 usage(){ sed -n '2,22p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
 
 case "${1:-}" in
-  list)    cmd_list ;;
-  flags)   cmd_flags ;;
-  check)   shift; cmd_check "$@" ;;
+  list)     cmd_list ;;
+  flags)    cmd_flags ;;
+  check)    shift; cmd_check "$@" ;;
+  selftest) shift; cmd_selftest "$@" ;;
   docker)  shift; cmd_docker "$@" ;;
   lite)    shift; cmd_lite "$@" ;;
   ""|-h|--help|help) usage ;;

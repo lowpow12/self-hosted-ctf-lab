@@ -23,10 +23,22 @@ jadi di HP pakai **lite**; untuk root/privesc pindahkan repo ke mesin ber-Docker
 dan pakai **docker**. Kode mesinnya sama.
 
 **Status pengujian:**
-- ✅ **Mode lite** — semua mesin sudah diuji end-to-end di NetHunter/Termux (aarch64).
-- ⚠️ **Mode docker** — Dockerfile ditulis mengikuti pola standar tetapi **belum
-  diverifikasi** (lingkungan pengembangan tidak punya Docker). Diharapkan jalan di
-  Linux ber-Docker; mohon laporkan jika ada yang perlu disesuaikan.
+- ✅ **Mode lite** — semua 8 mesin lolos uji otomatis: `./labctl selftest lite all`
+  (8 PASS) di NetHunter/Termux (aarch64).
+- ⚠️ **Mode docker** — Dockerfile ditulis mengikuti pola standar; solver serangannya
+  terbukti benar (lolos di lite), tetapi **pengemasan Docker belum diverifikasi**
+  (lingkungan pengembangan tidak punya Docker). Validasi di PC ber-Docker:
+  `./labctl selftest docker all` — lihat [`docs/DOCKER-TESTING.md`](docs/DOCKER-TESTING.md).
+
+### Uji otomatis (selftest)
+
+```bash
+./labctl selftest lite all        # jalankan+serang+verifikasi semua mesin (lite)
+./labctl selftest docker all      # sama, untuk docker (butuh Docker)
+./labctl selftest lite 05-renderbox   # satu mesin saja
+```
+
+Tiap mesin punya solver referensi di `machines/<id>/solution/exploit.sh`.
 
 ## Setup pertama kali (langkah demi langkah)
 
