@@ -1,0 +1,6 @@
+Selamat datang di VaultDocs.
+
+Portal ini dipakai tim internal untuk membaca dokumen perusahaan.
+Pilih dokumen dari menu di kiri untuk mulai membaca.
+
+-- Tim IT

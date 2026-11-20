@@ -1,0 +1,4 @@
+Catatan internal (JANGAN disebar):
+- Flag user disimpan di home user 'analyst': /home/analyst/user.txt
+- Reminder: parameter ?doc= masih belum divalidasi. Reviewer sudah bilang bahaya.
+- Kalau sudah sempat, batasi akses ke folder pages/ saja.

@@ -1,0 +1,5 @@
+Changelog
+=========
+v1.0  - Rilis pertama. Bisa menampilkan dokumen dari folder pages/.
+        TODO (dari catatan reviewer): validasi parameter ?doc= !!
+        "parameter doc langsung dipakai untuk path, bahaya." -- belum dikerjakan

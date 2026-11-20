@@ -164,7 +164,10 @@ cmd_lite(){
         part="${part//\{bind\}/$BIND}"; part="${part//\{port\}/$port}"
         cmd+=("$part")
       done < <(pj_arr "$j" lite.cmd)
-      ( cd "$inst" && nohup "${cmd[@]}" >"$inst/.log" 2>&1 & echo $! > "$pidf" )
+      # Background subshell yang langsung `exec` jadi server, supaya $! = PID server
+      # yang tersimpan benar-benar proses itu (bukan subshell perantara).
+      ( cd "$inst" && exec nohup "${cmd[@]}" >"$inst/.log" 2>&1 ) &
+      echo $! > "$pidf"
       sleep 0.5
       if kill -0 "$(cat "$pidf")" 2>/dev/null; then
         ok "jalan: http://${BIND}:${port}  (pid $(cat "$pidf"))"

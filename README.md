@@ -107,15 +107,20 @@ biasa), tapi lebih rapi kalau di-`down` dulu.
 
 ## Terminal terpisah dengan tmux (disarankan di Termux)
 
-Supaya bisa bolak-balik antara **mesin** (server) dan **playground** (sisi
-penyerang) dalam satu layar, pakai `ctf-tmux`:
+Saat latihan Anda butuh dua hal sekaligus: **mesin** harus tetap jalan, dan Anda
+butuh terminal untuk **menyerang**. Kalau keduanya di satu terminal, repot. `tmux`
+membelah layar jadi dua panel, dan `ctf-tmux` menyiapkan semuanya otomatis:
 
 ```bash
-./ctf-tmux 01-pingboard          # lite (default)
-./ctf-tmux 01-pingboard docker   # mode docker
+./ctf-tmux 01-pingboard          # lite (default, untuk HP)
+./ctf-tmux 01-pingboard docker   # mode docker (untuk PC)
 ```
 
-Membuka sesi tmux dua panel:
+> **tmux itu apa?** Program yang membagi satu terminal jadi beberapa panel, dan
+> membiarkan program tetap jalan walau Anda tutup. Perintahnya diawali tombol
+> "prefix" `Ctrl-b` (tekan `Ctrl`+`b`, lepas, lalu tekan tombol berikutnya).
+
+Setelah dijalankan, layar terbelah dua panel:
 
 ```
 ┌─ MESIN:01-pingboard ─────┬─ PLAYGROUND ───────────────┐
@@ -139,11 +144,33 @@ sudah berisi URL mesin, jadi bisa langsung `curl $TARGET/ ...`.
 
 ## Mode docker (di PC)
 
+Mode ini untuk komputer yang punya Docker (bukan HP). Bedanya dengan lite:
+mesin berjalan terisolasi di dalam container, jadi **flag `root` dan latihan
+privilege escalation (naik jadi root) bisa dilakukan** — tidak seperti lite yang
+biasanya hanya sampai flag `user`.
+
+**Langkah 1 — Bangun image mesinnya** (hanya perlu sekali per mesin, atau setelah
+kodenya diubah):
+
 ```bash
 ./labctl docker build 01-pingboard
-./labctl docker up 01-pingboard     # http://127.0.0.1:8001
+```
+
+**Langkah 2 — Nyalakan:**
+
+```bash
+./labctl docker up 01-pingboard     # buka http://127.0.0.1:8001
+```
+
+(Kalau image belum dibangun, `up` akan otomatis membangunnya dulu.)
+
+**Langkah 3 — Matikan kalau selesai:**
+
+```bash
 ./labctl docker down 01-pingboard
 ```
+
+> Perintahnya sama persis dengan mode lite, cuma kata `lite` diganti `docker`.
 
 ## Struktur
 
@@ -167,5 +194,6 @@ ctf-lab/
 | ID | Kesulitan | Kategori | Teknik |
 |----|-----------|----------|--------|
 | 01-pingboard | easy | web → privesc | command injection, bypass filter, sudo misconfig |
+| 02-vaultdocs | easy | web (LFI) | path traversal, local file inclusion, information disclosure |
 
 Tambah mesin baru: lihat [`docs/ADDING-MACHINES.md`](docs/ADDING-MACHINES.md).

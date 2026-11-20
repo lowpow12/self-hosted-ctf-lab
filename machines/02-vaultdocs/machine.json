@@ -1,0 +1,17 @@
+{
+  "id": "02-vaultdocs",
+  "name": "VaultDocs",
+  "difficulty": "easy",
+  "category": "web",
+  "techniques": ["path-traversal", "local-file-inclusion", "information-disclosure"],
+  "description": "Portal dokumen internal. Pilih dokumen, sistem menampilkannya. Sesederhana itu... kan?",
+  "ports": [{ "container": 80, "host": 8002 }],
+  "flags": ["user"],
+  "lite": {
+    "port": 9002,
+    "copy": { "app": "www" },
+    "cmd": ["php", "-S", "{bind}:{port}", "-t", "www"],
+    "flag_files": { "user": "user.txt" },
+    "note": "Flag user ada DI LUAR folder web. Baca lewat path traversal pada parameter ?doc="
+  }
+}

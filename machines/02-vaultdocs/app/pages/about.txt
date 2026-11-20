@@ -1,0 +1,4 @@
+VaultDocs v1.0
+
+Aplikasi viewer dokumen sederhana. Semua dokumen disimpan di folder "pages".
+Dibuat cepat untuk kebutuhan internal. Belum sempat di-review keamanan.
