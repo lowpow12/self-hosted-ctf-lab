@@ -1,0 +1,17 @@
+{
+  "id": "03-snapgallery",
+  "name": "SnapGallery",
+  "difficulty": "medium",
+  "category": "web",
+  "techniques": ["unrestricted-file-upload", "mime-type-bypass", "rce", "suid-privesc"],
+  "description": "Galeri foto tim. Upload gambar, langsung tampil. Validasinya... seadanya.",
+  "ports": [{ "container": 80, "host": 8003 }],
+  "flags": ["user", "root"],
+  "lite": {
+    "port": 9003,
+    "copy": { "app": "www" },
+    "cmd": ["php", "-S", "{bind}:{port}", "-t", "www"],
+    "flag_files": { "user": "user.txt" },
+    "note": "Validasi upload cuma cek Content-Type. File .php yang di-upload akan dieksekusi. Flag root hanya di mode docker."
+  }
+}

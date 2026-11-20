@@ -195,5 +195,6 @@ ctf-lab/
 |----|-----------|----------|--------|
 | 01-pingboard | easy | web → privesc | command injection, bypass filter, sudo misconfig |
 | 02-vaultdocs | easy | web (LFI) | path traversal, local file inclusion, information disclosure |
+| 03-snapgallery | medium | web (upload→RCE) | unrestricted file upload, MIME bypass, RCE, SUID privesc |
 
 Tambah mesin baru: lihat [`docs/ADDING-MACHINES.md`](docs/ADDING-MACHINES.md).
